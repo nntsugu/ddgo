@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"net/http"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"io/ioutil"
@@ -22,29 +22,51 @@ type DatadogInformation struct {
 	AuthenticationParams []string
 }
 
-var Datadog DatadogInformation = DatadogInformation{
+var DDKeys DatadogKeys = DatadogKeys{}
+var DDInformation DatadogInformation = DatadogInformation{
 	AuthenticationEP: "https://app.datadoghq.com/api/v1/validate",
-	AuthenticationParams:  []string{"?api_key="},
-
+	AuthenticationParams:  []string{"api_key"},
 }
 
 
-func main() {
-	targetFile := filepath.Join("..", "secrets", "dd.yaml")
 
-	println(targetFile)
+func main() {
+	//================
+	// Load seacrets
+	// ToDo How to manage secrets?
+	targetFile := filepath.Join("..", "secrets", "dd.yaml")
 
 	b, err := ioutil.ReadFile(targetFile)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	var d DatadogKeys
-	err = yaml.Unmarshal(b, &d)
-	fmt.Println(d.Datadog.Api_key)
+	err = yaml.Unmarshal(b, &DDKeys)
+	// fmt.Println(DDKeys.Datadog.Api_key)
+	//================
+
+	doGet()
 }
 
 func doGet() {
+	client := &http.Client{}
 	values := url.Values{}
-	values.Add("api_key", "")
+	values.Add("api_key", DDKeys.Datadog.Api_key)
+
+	req, err := http.NewRequest("GET", DDInformation.AuthenticationEP, nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	req.URL.RawQuery = values.Encode()
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Println(req.URL.RawQuery)
+	fmt.Println(resp)
 }
