@@ -39,19 +39,6 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// str := string(b)
-	// fmt.Println(str)
-	// fmt.Println(Datadog.AuthenticationEP)
-
-	m := make(map[interface{}]interface{})
-	err = yaml.Unmarshal(b, &m)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-
-	// fmt.Println("%s", m["datadog"].(map[interface{}]interface{})["api_key"])
-	fmt.Println("%s", m["datadog"])
 	var d DatadogKeys
 	err = yaml.Unmarshal(b, &d)
 	fmt.Println(d.Datadog.Api_key)
