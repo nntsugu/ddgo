@@ -1,14 +1,23 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"io/ioutil"
-	"fmt"
 
-	 "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
+
+const (
+	Version = "0.0.1"
+)
+
+type Argument struct {
+	configFilePath string
+}
 
 type DatadogKeys struct {
 	Datadog struct {
@@ -18,19 +27,40 @@ type DatadogKeys struct {
 }
 
 type DatadogInformation struct {
-	AuthenticationEP string
+	AuthenticationEP     string
 	AuthenticationParams []string
 }
 
+var Arguments Argument = Argument{}
 var DDKeys DatadogKeys = DatadogKeys{}
 var DDInformation DatadogInformation = DatadogInformation{
-	AuthenticationEP: "https://app.datadoghq.com/api/v1/validate",
-	AuthenticationParams:  []string{"api_key"},
+	AuthenticationEP:     "https://app.datadoghq.com/api/v1/validate",
+	AuthenticationParams: []string{"api_key"},
 }
 
-
-
 func main() {
+	var showVersion bool
+
+	// -v -version
+	flag.BoolVar(&showVersion, "v", false, "show version")
+	flag.BoolVar(&showVersion, "version", false, "show version")
+	// -f
+	flag.StringVar(&Arguments.configFilePath, "f", "", "set configration file path")
+
+	flag.Parse()
+	if showVersion {
+		fmt.Println(Version)
+		return
+	}
+	if Arguments.configFilePath != "" {
+		b, err := ioutil.ReadFile(Arguments.configFilePath)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(b)
+		return
+	}
+
 	//================
 	// Load seacrets
 	// ToDo How to manage secrets?
