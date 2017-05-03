@@ -4,15 +4,20 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
-	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	Version = "0.0.1"
+)
+
+// const for debug
+const (
+	LogSeparator = "===================="
 )
 
 type Argument struct {
@@ -26,16 +31,30 @@ type DatadogKeys struct {
 	}
 }
 
+type Eps struct {
+	End_point string
+	Params    []string
+}
 type DatadogInformation struct {
-	AuthenticationEP     string
-	AuthenticationParams []string
+	Authentication       Eps
+	GetAllMonitorDetails Eps
 }
 
 var Arguments Argument = Argument{}
 var DDKeys DatadogKeys = DatadogKeys{}
-var DDInformation DatadogInformation = DatadogInformation{
-	AuthenticationEP:     "https://app.datadoghq.com/api/v1/validate",
-	AuthenticationParams: []string{"api_key"},
+var DDInformation = NewDatadogInformation()
+
+func NewDatadogInformation() *DatadogInformation {
+	return &DatadogInformation{
+		Authentication: Eps{
+			End_point: "https://app.datadoghq.com/api/v1/validate",
+			Params:    []string{"api_key"},
+		},
+		GetAllMonitorDetails: Eps{
+			End_point: "https://app.datadoghq.com/api/v1/monitor",
+			Params:    []string{"api_key", "application_key", "from"},
+		},
+	}
 }
 
 func main() {
@@ -57,16 +76,17 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(b)
-		return
+		fmt.Println(string(b))
+		// return
 	}
 
 	//================
 	// Load seacrets
 	// ToDo How to manage secrets?
-	targetFile := filepath.Join("..", "secrets", "dd.yaml")
+	// targetFile := filepath.Join("..", "secrets", "dd.yaml")
 
-	b, err := ioutil.ReadFile(targetFile)
+	// b, err := ioutil.ReadFile(targetFile)
+	b, err := ioutil.ReadFile(Arguments.configFilePath)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -76,6 +96,7 @@ func main() {
 	//================
 
 	doGet()
+	getAllMonitorDetails()
 }
 
 func doGet() {
@@ -83,7 +104,7 @@ func doGet() {
 	values := url.Values{}
 	values.Add("api_key", DDKeys.Datadog.Api_key)
 
-	req, err := http.NewRequest("GET", DDInformation.AuthenticationEP, nil)
+	req, err := http.NewRequest("GET", DDInformation.Authentication.End_point, nil)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -99,4 +120,44 @@ func doGet() {
 
 	fmt.Println(req.URL.RawQuery)
 	fmt.Println(resp)
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Println("doGet: ", string(b))
+}
+
+func getAllMonitorDetails() {
+	client := &http.Client{}
+	values := url.Values{}
+	values.Add("api_key", DDKeys.Datadog.Api_key)
+	values.Add("application_key", DDKeys.Datadog.App_key)
+
+	req, err := http.NewRequest("GET", DDInformation.GetAllMonitorDetails.End_point, nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	req.URL.RawQuery = values.Encode()
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Println(req.URL.RawQuery)
+	fmt.Println(resp)
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	log.Println(LogSeparator, "getAllMonitorDetails", LogSeparator)
+	log.Println("llllllllll", string(b))
+	log.Println(LogSeparator, "getAllMonitorDetails", LogSeparator)
 }
