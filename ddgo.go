@@ -158,6 +158,6 @@ func getAllMonitorDetails() {
 		return
 	}
 	log.Println(LogSeparator, "getAllMonitorDetails", LogSeparator)
-	log.Println("llllllllll", string(b))
+	log.Println(string(b))
 	log.Println(LogSeparator, "getAllMonitorDetails", LogSeparator)
 }
