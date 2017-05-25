@@ -154,12 +154,6 @@ func createMonitors() {
 		monitors = append(monitors, jsonBytes)
 	}
 
-	// for _, f := range monitors {
-	// 	json.Unmarshal(f.([]byte), &conf)
-	// 	monitorName, _ := dproxy.New(conf).M("name").String()
-	// 	log.Println(monitorName)
-	// }
-	// return
 	createTargets := _duplicationCheck(monitors)
 	log.Println(createTargets)
 	for _, f := range monitors {
@@ -181,7 +175,6 @@ func createMonitors() {
 			continue
 		}
 
-		// req, err := http.NewRequest("POST", DDInformation.GetAllMonitorDetails.End_point, bytes.NewBuffer(jsonBytes))
 		req, err := http.NewRequest("POST", DDInformation.GetAllMonitorDetails.End_point, bytes.NewBuffer(f.([]byte)))
 		if err != nil {
 			fmt.Println(err)
