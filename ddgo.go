@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os/user"
 	"path/filepath"
 
 	"gopkg.in/yaml.v2"
@@ -27,7 +26,8 @@ const (
 )
 
 type Argument struct {
-	configFilePath string
+	configFilePath         string
+	moniotoringSettingsDir string
 }
 
 type DatadogKeys struct {
@@ -39,7 +39,7 @@ type DatadogKeys struct {
 
 type Eps struct {
 	End_point string
-	Params    []string
+	// Params    []string
 }
 type DatadogInformation struct {
 	Authentication       Eps
@@ -55,33 +55,17 @@ func NewDatadogInformation() *DatadogInformation {
 	return &DatadogInformation{
 		Authentication: Eps{
 			End_point: "https://app.datadoghq.com/api/v1/validate",
-			Params:    []string{"api_key"},
+			// Params:    []string{"api_key"},
 		},
 		GetAllMonitorDetails: Eps{
 			End_point: "https://app.datadoghq.com/api/v1/monitor",
-			Params:    []string{"api_key", "application_key", "from"},
+			// Params:    []string{"api_key", "application_key", "from"},
 		},
 		// http://docs.datadoghq.com/ja/api/?lang=console#monitor-create
 		CreateAMonitor: Eps{
 			End_point: "https://app.datadoghq.com/api/v1/monitor",
-			Params:    []string{"type", "query", "name", "message"},
+			// Params:    []string{"type", "query", "name", "message"},
 		},
-	}
-}
-
-type DatadogMonitor struct {
-	Type    string `json:"type"`
-	Query   string `json:"query"`
-	Name    string `json:"name"`
-	Message string `json:"message"`
-}
-
-func NewDatadogMonitor() *DatadogMonitor {
-	return &DatadogMonitor{
-		Type:    "",
-		Query:   "",
-		Name:    "",
-		Message: "",
 	}
 }
 
@@ -91,21 +75,31 @@ func main() {
 	// -v -version
 	flag.BoolVar(&showVersion, "v", false, "show version")
 	flag.BoolVar(&showVersion, "version", false, "show version")
-	// -f
-	flag.StringVar(&Arguments.configFilePath, "f", "", "set configration file path")
+	// -f (required)
+	flag.StringVar(&Arguments.configFilePath, "f", "", "set credential file path which must have api_key and app_key(application_key) to access Datadog API. ref. http://docs.datadoghq.com/api/")
+	// -m (required)
+	flag.StringVar(&Arguments.moniotoringSettingsDir, "m", "", "set the directory path which has monitoring definitions. e.g) ~/monitorring_setting.d")
 
 	flag.Parse()
 	if showVersion {
 		fmt.Println(Version)
 		return
 	}
+	// validation
+	if Arguments.configFilePath == "" {
+		fmt.Println("-f is required.")
+		flag.Usage()
+		return
+	}
+	if Arguments.moniotoringSettingsDir == "" {
+		fmt.Println("-m is required.")
+		flag.Usage()
+		return
+	}
+	// initialize
 	if Arguments.configFilePath != "" {
 		//================
 		// Load seacrets
-		// ToDo How to manage secrets?
-		// targetFile := filepath.Join("..", "secrets", "dd.yaml")
-
-		// b, err := ioutil.ReadFile(targetFile)
 		b, err := ioutil.ReadFile(Arguments.configFilePath)
 		if err != nil {
 			fmt.Println(err)
@@ -120,7 +114,6 @@ func main() {
 }
 
 func createMonitors() {
-	// var jsonBytes []byte
 	var monitors []interface{}
 	var conf interface{}
 	var skip bool
@@ -130,13 +123,13 @@ func createMonitors() {
 	values.Add("api_key", DDKeys.Datadog.Api_key)
 	values.Add("application_key", DDKeys.Datadog.App_key)
 
-	// var conf interface{}
-	u, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	confPath := filepath.Join(u.HomeDir, "conf.d", "monitor_template.d")
+	// u, err := user.Current()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// 	return
+	// }
+	//confPath := filepath.Join(u.HomeDir, "conf.d", "monitor_template.d"
+	confPath := Arguments.moniotoringSettingsDir
 
 	d, err := ioutil.ReadDir(confPath)
 	if err != nil {
@@ -155,9 +148,7 @@ func createMonitors() {
 	}
 
 	createTargets := _duplicationCheck(monitors)
-	log.Println(createTargets)
 	for _, f := range monitors {
-		// for _, t := range createTargets {
 		json.Unmarshal(f.([]byte), &conf)
 		monitorName, err := dproxy.New(conf).M("name").String()
 		if err != nil {
@@ -200,13 +191,11 @@ func createMonitors() {
 		fmt.Println("created:", monitorName)
 		// log.Println(string(b))
 		// log.Println(LogSeparator, "createAMonitor", LogSeparator)
-
-		// log.Println(string(ioutil.ReadAll(resp.Header)))
-
 	}
 	return
 }
 
+// return the slice which has the list of create target moniroting settings.
 func _duplicationCheck(monitors []interface{}) []string {
 	var conf interface{}
 	var createTargets []string
@@ -217,12 +206,11 @@ func _duplicationCheck(monitors []interface{}) []string {
 			log.Fatal("Monitor name is undefined please check json file(s) ", err)
 		}
 		if _isMonitorExists(monitorName) {
-			log.Println(monitorName, "is already exist.")
+			log.Println(monitorName, "is already exists.")
 		} else {
 			createTargets = append(createTargets, monitorName)
 		}
 	}
-	log.Println(createTargets)
 	return createTargets
 }
 
@@ -257,11 +245,8 @@ func _isMonitorExists(name string) bool {
 	json.Unmarshal(b, &conf)
 
 	monitorName, err := dproxy.New(conf).A(0).M("name").String()
-	// log.Println("monitorName:", monitorName)
-	// log.Println("Param:", name)
 	if err != nil {
 		log.Println("Monitoring setting : ", name, " is not found on Datadog")
-		// monitor : name is not found on Datadog
 		return false
 	}
 	if name == monitorName {
