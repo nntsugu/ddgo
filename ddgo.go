@@ -70,17 +70,26 @@ func NewDatadogInformation() *DatadogInformation {
 }
 
 func main() {
+	invalidArgments := false
 	var showVersion bool
+	var showUsage bool
 
 	// -v -version
 	flag.BoolVar(&showVersion, "v", false, "show version")
 	flag.BoolVar(&showVersion, "version", false, "show version")
+	// -h -help
+	flag.BoolVar(&showUsage, "h", false, "show usage")
+	flag.BoolVar(&showUsage, "help", false, "show usage")
 	// -f (required)
 	flag.StringVar(&Arguments.configFilePath, "f", "", "set credential file path which must have api_key and app_key(application_key) to access Datadog API. ref. http://docs.datadoghq.com/api/")
 	// -m (required)
 	flag.StringVar(&Arguments.moniotoringSettingsDir, "m", "", "set the directory path which has monitoring definitions. e.g) ~/monitorring_setting.d")
 
 	flag.Parse()
+	if showUsage {
+		flag.Usage()
+		return
+	}
 	if showVersion {
 		fmt.Println(Version)
 		return
@@ -88,14 +97,17 @@ func main() {
 	// validation
 	if Arguments.configFilePath == "" {
 		fmt.Println("-f is required.")
-		flag.Usage()
-		return
+		invalidArgments = true
 	}
 	if Arguments.moniotoringSettingsDir == "" {
 		fmt.Println("-m is required.")
-		flag.Usage()
+		invalidArgments = true
+	}
+	if invalidArgments {
+		fmt.Println("-h : show usage")
 		return
 	}
+
 	// initialize
 	if Arguments.configFilePath != "" {
 		//================
