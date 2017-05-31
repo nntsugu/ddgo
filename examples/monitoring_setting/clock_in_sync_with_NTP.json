@@ -1,0 +1,21 @@
+{
+	"name": "[test][Auto] Clock in sync with NTP",
+	"type": "service check",
+	"query": "\"ntp.in_sync\".over(\"*\").by(\"host\").last(2).count_by_status()",
+	"message": "Triggers if any host's clock goes out of sync with the time given by NTP. The offset threshold is configured in the Agent's `ntp.yaml` file.\n\nPlease read the [KB article](http://help.datadoghq.com/hc/en-us/articles/204282095-Network-Time-Protocol-NTP-Offset-Issues) on NTP Offset issues for more details on cause and resolution.",
+	"tags": [],
+	"options": {
+		"thresholds": {
+			"warning": 1,
+			"ok": 1,
+			"critical": 1
+		},
+		"silenced": {},
+		"renotify_interval": 0,
+		"timeout_h": 0,
+		"notify_no_data": false,
+		"no_data_timeframe": 2,
+		"notify_audit": false,
+		"new_host_delay": 300
+	}
+}
