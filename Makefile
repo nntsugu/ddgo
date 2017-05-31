@@ -4,7 +4,7 @@ REVISION ?= $(shell git rev-parse --short HEAD)
 BUILD_OS_TARGETS   = "linux darwin windows"
 BUILD_ARCH_TARGETS = "amd64"
 
-BUILD_LDFLAGS = ""
+BUILD_LDFLAGS = "-s -w"
 
 all: clean test build
 
