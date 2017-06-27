@@ -13,6 +13,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"time"
+
 	dproxy "github.com/koron/go-dproxy"
 )
 
@@ -42,9 +44,10 @@ type Eps struct {
 	// Params    []string
 }
 type DatadogInformation struct {
-	Authentication       Eps
-	GetAllMonitorDetails Eps
-	CreateAMonitor       Eps
+	Authentication         Eps
+	GetAllMonitorDetails   Eps
+	CreateAMonitor         Eps
+	GetAllMonitoriDowntime Eps
 }
 
 var Arguments Argument = Argument{}
@@ -59,12 +62,14 @@ func NewDatadogInformation() *DatadogInformation {
 		},
 		GetAllMonitorDetails: Eps{
 			End_point: "https://app.datadoghq.com/api/v1/monitor",
-			// Params:    []string{"api_key", "application_key", "from"},
 		},
 		// http://docs.datadoghq.com/ja/api/?lang=console#monitor-create
 		CreateAMonitor: Eps{
 			End_point: "https://app.datadoghq.com/api/v1/monitor",
-			// Params:    []string{"type", "query", "name", "message"},
+		},
+		// http://docs.datadoghq.com/ja/api/#downtimes
+		GetAllMonitoriDowntime: Eps{
+			End_point: "https://app.datadoghq.com/api/v1/downtime",
 		},
 	}
 }
@@ -122,7 +127,8 @@ func main() {
 		//================
 	}
 
-	createMonitors()
+	isThereAnyLongDowntime()
+	// createMonitors()
 }
 
 func createMonitors() {
@@ -258,7 +264,7 @@ func _isMonitorExists(name string) bool {
 
 	monitorName, err := dproxy.New(conf).A(0).M("name").String()
 	if err != nil {
-		log.Println("Monitoring setting : ", name, " is not found on Datadog")
+		// log.Println("Monitoring setting : ", name, " is not found on Datadog")
 		return false
 	}
 	if name == monitorName {
@@ -266,4 +272,90 @@ func _isMonitorExists(name string) bool {
 		return true
 	}
 	return false
+}
+
+func isThereAnyLongDowntime() {
+	// 1 week lator
+	t1 := time.Now().AddDate(0, 0, 7)
+	t2 := t1
+	fmt.Println(t2.Unix)
+	fmt.Println(t2.Sub(t1)) // 12h0m0s
+
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+
+	t3 := time.Date(2017, 6, 19, 8, 0, 0, 0, loc)
+	fmt.Println(t2.Sub(t3)) // 12h0m0s
+
+	// d := time.Since(t3)
+	// fmt.Println(d) // 72h0m0s (Go Playgroundで実行した場合)
+
+	var conf interface{}
+
+	client := &http.Client{}
+	values := url.Values{}
+	values.Add("api_key", DDKeys.Datadog.Api_key)
+	values.Add("application_key", DDKeys.Datadog.App_key)
+
+	req, err := http.NewRequest("GET", DDInformation.GetAllMonitoriDowntime.End_point, nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	req.URL.RawQuery = values.Encode()
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	json.Unmarshal(b, &conf)
+
+	fmt.Println(conf)
+
+	// monitorName, err := dproxy.New(conf).A(0).M("name").String()
+
+	// downtime, err := dproxy.NewSet(conf).Len()
+	// fmt.Println(downtime)
+	var endDowntime float64
+	var item dproxy.Proxy
+	for index := 0; ; {
+		fmt.Println(LogSeparator)
+		fmt.Println(dproxy.New(conf).A(index))
+		item = dproxy.New(conf).A(index)
+		index++
+
+		if item.M("end").Nil() == true {
+			log.Println("end duration is not set")
+			continue
+		}
+		endDowntime, err = item.M("end").Float64()
+		if err != nil {
+			fmt.Println(err)
+			log.Println(err)
+			break
+		}
+		// fmt.Println(string(endDowntime))
+		fmt.Println(endDowntime)
+	}
+	// for _, downtime := range dproxy.New(conf).A {
+	// 	fmt.Println(downtime)
+	// }
+
+	// if err != nil {
+	// 	// log.Println("Monitoring setting : ", name, " is not found on Datadog")
+	// 	return false
+	// }
+	// if name == monitorName {
+	// 	// log.Println(name, "is already exist.")
+	// 	return true
+	// }
+	return
+
 }
